@@ -26,7 +26,7 @@ async function fetchData() {
           <span class="count"> ${prod.rating.count}</span> 
           <p class="card-text mt-2 fs-5">&#36;${prod.price}</p>
           <p class="card-text">
-          <a href="#" id="${prod.id}" onClick="addToCart(this.id)" class="btn btn-warning" >Add to Cart</a>
+          <a href="javascript:void(0);" id="${prod.id}" onClick="addToCart(this.id)" class="btn btn-warning" >Add to Cart</a>
           </p>
         </div>
       </div>
@@ -105,7 +105,11 @@ function viewCart() {
           <p class="card-text">
             ${i.category}
           </p>
-          <p class="card-text mt-1 fs-5">&#36;${i.price}</p>          
+          <p id="price${
+            i.id
+          }" class="priceView" class="card-text mt-1 fs-5">&#36;${
+        i.price * qty[i.id]
+      }</p>          
           <div class="card-text mb-3">
             <button id="qtyDec${
               i.id
@@ -129,27 +133,43 @@ function viewCart() {
   }
 }
 
+let qtyList = document.getElementsByClassName("qtySpan");
+let priceList = document.getElementsByClassName("priceView");
+let regExp = /(\d+)/;
+
 function qtyInc(clicked_id) {
-  let qtyList = document.getElementsByClassName("qtySpan");
   for (var i = 0; i < qtyList.length; i++) {
-    if (qtyList[i].id.slice(-1) == clicked_id.slice(-1)) {
+    let numQty = qtyList[i].id.match(regExp);
+    let numClk = clicked_id.match(regExp);
+
+    if (numQty[0] == numClk[0]) {
       var temp = qtyList[i].textContent;
       var res = Number(temp) + 1;
-      qty[clicked_id.slice(-1)] += 1;
+      qty[numClk[0]] += 1;
       qtyList[i].innerHTML = `${res}`;
+
+      var tempPrice = priceList[i].textContent;
+      let t = Number(tempPrice.slice(1)) + cartList[i].price;
+      priceList[i].innerHTML = `&#36;${t.toFixed(2)}`;
     }
   }
 }
 
 function qtyDec(clicked_id) {
-  let qtyList = document.getElementsByClassName("qtySpan");
   for (var i = 0; i < qtyList.length; i++) {
-    if (qtyList[i].id.slice(-1) == clicked_id.slice(-1)) {
+    let numQty = qtyList[i].id.match(regExp);
+    let numClk = clicked_id.match(regExp);
+
+    if (numQty[0] == numClk[0]) {
       if (qtyList[i].textContent > 1) {
         var temp = qtyList[i].textContent;
         var res = Number(temp) - 1;
-        qty[clicked_id.slice(-1)] -= 1;
+        qty[numClk[0]] -= 1;
         qtyList[i].innerHTML = `${res}`;
+
+        var tempPrice = priceList[i].textContent;
+        let t = Number(tempPrice.slice(1)) - cartList[i].price;
+        priceList[i].innerHTML = `&#36;${t.toFixed(2)}`;
       }
     }
   }
@@ -170,6 +190,9 @@ function removeProd(clicked_id) {
   clickedBtn.setAttribute("class", "btn btn-warning");
   clickedBtn.style = "";
   document.getElementById("itemsCount").innerHTML = `${cartList.length}`;
+  let numClk = clicked_id.match(regExp);
+
+  qty[numClk[0]] = 1;
 }
 
 function viewHome() {
