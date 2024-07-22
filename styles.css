@@ -1,9 +1,21 @@
 #bodyDiv {
-  background-color: #053262;
+  background-color: #0e111c;
 }
 
 .fixed-top {
-  background-color: #053262;
+  background-color: #0e111c;
+}
+
+#categories {
+  display: none;
+}
+
+#categories li:hover {
+  cursor: pointer;
+}
+
+.navbar form > input {
+  max-width: 275px;
 }
 
 .rating {
@@ -17,7 +29,7 @@
   font-size: 13px;
 }
 
-.cart_sec {
+#cart_sec {
   display: none;
 }
 
