@@ -1,16 +1,39 @@
-async function fetchData() {
-  const response = await fetch("https://fakestoreapi.com/products");
-  productsData = await response.json();
+let productsData = []; // Global variable to store fetched products data
 
-  display(productsData);
+async function fetchData() {
+  const productsDiv = document.getElementById("products_col");
+
+  // Add loading spinner to products_col
+  productsDiv.innerHTML = `
+    <div class="d-flex justify-content-center align-items-center" style="height: 500px;">
+      <div class="spinner-border text-light" role="status"></div>
+      <span class="ms-2 text-light">Loading...</span>
+    </div>`;
+
+  try {
+    // Fetch data from API
+    const response = await fetch("https://fakestoreapi.com/products");
+    productsData = await response.json();
+
+    // Display the fetched data
+    display(productsData);
+  } catch (error) {
+    console.error("Failed to fetch data:", error);
+    productsDiv.innerHTML = `<p class="text-danger text-center">Failed to load products. Please try again later.</p>`;
+  }
 }
 
-fetchData();
+// fetchData();
 
 function display(tempData) {
+  const productsDiv = document.getElementById("products_col");
+
+  // Clear the loading spinner or any previous content
+  productsDiv.innerHTML = "";
+
   for (var i = 0; i < tempData.length; i++) {
     var prod = tempData[i];
-    var productsDiv = document.getElementById("products_col");
+    // var productsDiv = document.getElementById("products_col");
     var colDiv = document.createElement("div");
     productsDiv.append(colDiv);
     colDiv.setAttribute("class", "row justify-content-center");
@@ -41,6 +64,10 @@ function display(tempData) {
 </div>`;
   }
 }
+
+// Call fetchData to load products on page load
+fetchData();
+
 
 let flag = true;
 function categoryList() {
@@ -197,7 +224,8 @@ function viewCart() {
       newDiv.innerHTML = `<div class="card mb-3" style="max-width: 900px">
     <div class="row g-0">
       <div class="col-md-4 d-flex justify-content-center align-items-center pt-md-0 pt-3">
-        <img src="${i.image}" class="rounded-start" alt="..." width="230px" height="210px" />
+        <img src="${i.image
+        }" class="rounded-start" alt="..." width="230px" height="210px" />
       </div>
       <div class="col-md-8">
         <div class="card-body">
@@ -205,14 +233,19 @@ function viewCart() {
           <p class="card-text">
             ${i.category}
           </p>
-          <p id="price${i.id}" class="priceView" class="card-text mt-1 fs-5">&#36;${i.price * qty[i.id]}</p>          
+          <p id="price${i.id
+        }" class="priceView" class="card-text mt-1 fs-5">&#36;${i.price * qty[i.id]
+        }</p>          
           <div class="card-text mb-3">
-            <button id="qtyDec${i.id}" class="qtyBtn" onClick="qtyDec(this.id)">-</button>
+            <button id="qtyDec${i.id
+        }" class="qtyBtn" onClick="qtyDec(this.id)">-</button>
             <p id="qty${i.id}" class="qtySpan d-inline">${qty[i.id]}</p>
-            <button id="qtyInc${i.id}" class="qtyBtn" onClick="qtyInc(this.id)">+</button>               
+            <button id="qtyInc${i.id
+        }" class="qtyBtn" onClick="qtyInc(this.id)">+</button>               
           </div>
           <p class="card-text">
-            <a href="#" id="${i.id}" onClick="removeProd(this.id)" class="btn btn-danger">Remove</a>
+            <a href="#" id="${i.id
+        }" onClick="removeProd(this.id)" class="btn btn-danger">Remove</a>
           </p>
         </div>
       </div>
