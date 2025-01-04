@@ -197,9 +197,7 @@ function viewCart() {
       newDiv.innerHTML = `<div class="card mb-3" style="max-width: 900px">
     <div class="row g-0">
       <div class="col-md-4 d-flex justify-content-center align-items-center pt-md-0 pt-3">
-        <img src="${
-          i.image
-        }" class="rounded-start" alt="..." width="230px" height="210px" />
+        <img src="${i.image}" class="rounded-start" alt="..." width="230px" height="210px" />
       </div>
       <div class="col-md-8">
         <div class="card-body">
@@ -207,24 +205,14 @@ function viewCart() {
           <p class="card-text">
             ${i.category}
           </p>
-          <p id="price${
-            i.id
-          }" class="priceView" class="card-text mt-1 fs-5">&#36;${
-        i.price * qty[i.id]
-      }</p>          
+          <p id="price${i.id}" class="priceView" class="card-text mt-1 fs-5">&#36;${i.price * qty[i.id]}</p>          
           <div class="card-text mb-3">
-            <button id="qtyDec${
-              i.id
-            }" class="qtyBtn" onClick="qtyDec(this.id)">-</button>
+            <button id="qtyDec${i.id}" class="qtyBtn" onClick="qtyDec(this.id)">-</button>
             <p id="qty${i.id}" class="qtySpan d-inline">${qty[i.id]}</p>
-            <button id="qtyInc${
-              i.id
-            }" class="qtyBtn" onClick="qtyInc(this.id)">+</button>               
+            <button id="qtyInc${i.id}" class="qtyBtn" onClick="qtyInc(this.id)">+</button>               
           </div>
           <p class="card-text">
-            <a href="#" id="${
-              i.id
-            }" onClick="removeProd(this.id)" class="btn btn-danger">Remove</a>
+            <a href="#" id="${i.id}" onClick="removeProd(this.id)" class="btn btn-danger">Remove</a>
           </p>
         </div>
       </div>
