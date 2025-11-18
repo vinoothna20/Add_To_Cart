@@ -3,26 +3,71 @@ let productsData = []; // Global variable to store fetched products data
 async function fetchData() {
   const productsDiv = document.getElementById("products_col");
 
+  // Primary and Backup API URLs
+  const PRIMARY_API_URL = "https://fakestoreapi.com/products";
+  // Switching to FakeShopAPI (a reliable alternative) as the backup
+  const BACKUP_API_URL = "http://fake-shop-api.ap-south-1.elasticbeanstalk.com/app/v1/products"; // <--- NEW BACKUP URL
+
   // Add loading spinner to products_col
   productsDiv.innerHTML = `
-    <div class="d-flex justify-content-center align-items-center" style="height: 500px;">
-      <div class="spinner-border text-light" role="status"></div>
-      <span class="ms-2 text-light">Loading...</span>
-    </div>`;
+        <div class="d-flex justify-content-center align-items-center" style="height: 500px;">
+            <div class="spinner-border text-light" role="status"></div>
+            <span class="ms-2 text-light">Loading...</span>
+        </div>`;
 
   try {
-    // Fetch data from API
-    const response = await fetch("https://fakestoreapi.com/products");
+    // --- 1. Try Primary API (Fake Store API) ---
+    let response = await fetch(PRIMARY_API_URL);
+
+    // Throw an error for 5xx/4xx status codes
+    if (!response.ok) {
+      console.warn(`Primary API failed with status: ${response.status}. Attempting backup.`);
+      throw new Error(`Primary API failed: ${response.status}`);
+    }
+
     productsData = await response.json();
 
-    // Display the fetched data
-    display(productsData);
-  } catch (error) {
-    console.error("Failed to fetch data:", error);
-    productsDiv.innerHTML = `<p class="text-danger text-center">Failed to load products. Please try again later.</p>`;
+    console.log("Successfully loaded data from Primary API (Fake Store API).");
+
+  } catch (primaryError) {
+    // --- 2. If Primary API Fails, Try Backup API (FakeShopAPI) ---
+    console.error("Primary API fetch failed. Trying backup...", primaryError);
+
+    try {
+      let backupResponse = await fetch(BACKUP_API_URL);
+
+      if (!backupResponse.ok) {
+        throw new Error(`Backup API also failed: ${backupResponse.status}`);
+      }
+
+      let responseJson = await backupResponse.json();
+
+      // *** CRUCIAL DATA EXTRACTION for New API: ***
+      // New API wraps the product array inside a 'Data' property
+      if (responseJson.Data && Array.isArray(responseJson.Data)) {
+        productsData = responseJson.Data;
+      } else {
+        // Fallback to assume it's a direct array (or handle other unexpected structure)
+        productsData = responseJson;
+      }
+
+      console.log("Successfully loaded data from Backup API (FakeShopAPI).");
+
+    } catch (backupError) {
+      // --- 3. If Both Fail, Display Final Error ---
+      console.error("Both APIs failed to fetch data:", backupError);
+      productsDiv.innerHTML = `<p class="text-danger text-center">
+Failed to load products from both primary and backup sources. Please try again later.
+ </p>`;
+      return; // Stop execution if both fail
+    }
   }
+
+  // Display the fetched data (from whichever API succeeded)
+  display(productsData);
 }
 
+// Call fetchData to load products on page load
 // fetchData();
 
 function display(tempData) {
@@ -34,6 +79,41 @@ function display(tempData) {
   for (var i = 0; i < tempData.length; i++) {
     var prod = tempData[i];
     // var productsDiv = document.getElementById("products_col");
+
+    // --- Start: Normalization for API Differences ---
+    let normalizedProd = {};
+
+    // 1. ID: Fake Store uses 'id', New API uses '_id'
+    normalizedProd.id = prod.id || prod._id;
+
+    // 2. Title: Fake Store uses 'title', New API uses 'name'
+    normalizedProd.title = prod.title || prod.name;
+
+    // 3. Price: Use 'price'
+    normalizedProd.price = prod.price;
+
+    // 4. Description: Use 'description'
+    normalizedProd.description = prod.description;
+
+    // 5. Image URL: Fake Store uses 'image', New API uses an 'images' array
+    normalizedProd.image = prod.image || (prod.images && prod.images.length > 0 ? prod.images[0] : null);
+
+    // 6. Rating: Fake Store uses { rating: { rate, count } }, New API uses 'product_rating' (just the rate)
+    if (prod.rating && typeof prod.rating.rate === 'number') {
+      // Fake Store API format
+      normalizedProd.rate = prod.rating.rate;
+      normalizedProd.count = prod.rating.count || 0;
+    } else if (typeof prod.product_rating === 'number') {
+      // New Fake Shop API format 
+      normalizedProd.rate = prod.product_rating;
+      normalizedProd.count = 'N/A'; // New API does not provide a separate count field
+    } else {
+      // Fallback for missing rating data
+      normalizedProd.rate = 'N/A';
+      normalizedProd.count = 'N/A';
+    }
+    // --- End: Normalization ---
+
     var colDiv = document.createElement("div");
     productsDiv.append(colDiv);
     colDiv.setAttribute("class", "row justify-content-center");
@@ -41,22 +121,22 @@ function display(tempData) {
     colDiv.innerHTML = `<div class="card mb-3" style="max-width: 900px">
   <div class="row g-0">
     <div class="col-md-4 d-flex justify-content-center align-items-center pt-md-0 pt-3">
-      <img src="${prod.image}" class="rounded-start" alt="..." width="230px" height="210px" />
+      <img src="${normalizedProd.image}" class="rounded-start" alt="..." width="230px" height="210px" />
     </div>
     <div class="col-md-8">
       <div class="card-body">
-        <h5 class="card-title">${prod.title}</h5>
+        <h5 class="card-title">${normalizedProd.title}</h5>
         <p class="card-text">
-          ${prod.description}
+          ${normalizedProd.description}
         </p>
         <div class="card-text d-inline-flex align-items-center rating px-1">
-          <span>${prod.rating.rate}&nbsp;</span>
+          <span>${normalizedProd.rate}&nbsp;</span>
           <span class="star">&#11088;</span>                 
         </div>
-        <span class="count"> ${prod.rating.count}</span> 
-        <p class="card-text mt-2 fs-5">&#36;${prod.price}</p>
+        <span class="count"> ${normalizedProd.count}</span> 
+        <p class="card-text mt-2 fs-5">&#36;${normalizedProd.price}</p>
         <p class="card-text">
-        <a href="javascript:void(0);" id="${prod.id}" onClick="addToCart(this.id)" class="btn btn-warning" >Add to Cart</a>
+        <a href="javascript:void(0);" id="${normalizedProd.id}" onClick="addToCart(this.id)" class="btn btn-warning" >Add to Cart</a>
         </p>
       </div>
     </div>
@@ -77,7 +157,17 @@ function categoryList() {
   categoryDiv.style.left = "353px";
 
   let productCategories = productsData.reduce((acc, item) => {
-    if (!acc.includes(item.category)) acc.push(item.category);
+    let categoryValue;
+
+    if (Array.isArray(item.category) && item.category.length > 0) {
+      // New API structure: uses the first element of the array
+      categoryValue = item.category[0];
+    } else if (typeof item.category === 'string') {
+      // Fake Store structure: is a string
+      categoryValue = item.category;
+    }
+
+    if (categoryValue && !acc.includes(categoryValue)) acc.push(categoryValue);
     return acc;
   }, []);
 
@@ -103,8 +193,10 @@ function displayCategoryList() {
 function searchProducts() {
   let inputValue = document.getElementById("search_input").value.toLowerCase();
 
+  // Use normalized title/name for search
   let searchedData = productsData.filter((item) => {
-    if (item.title.toLowerCase().includes(inputValue)) return item;
+    let title = item.title || item.name;
+    if (title && title.toLowerCase().includes(inputValue)) return item;
   });
 
   document.getElementById("products_col").innerHTML = "";
@@ -125,7 +217,10 @@ function applyFilters() {
 
   document.querySelectorAll(".rating-checkbox:checked").forEach((checkbox) => {
     filteredRatingData = productsData.filter((item) => {
-      if (item.rating.rate >= checkbox.value) return item;
+      // Use normalized rate property
+      let rateValue = (item.rating && item.rating.rate) ? item.rating.rate : item.product_rating;
+
+      if (rateValue && rateValue >= checkbox.value) return item;
     });
   });
 
@@ -165,12 +260,17 @@ function clearFilters() {
   display(productsData);
 }
 
+// --- CART FUNCTIONS ---
+
 let prodCart;
 let cartList = [];
 
 function addToCart(clicked_id) {
   for (var i = 0; i < productsData.length; i++) {
-    if (clicked_id == productsData[i].id) {
+    // Use normalized ID check
+    let currentId = productsData[i].id || productsData[i]._id;
+
+    if (clicked_id == currentId) {
       prodCart = productsData[i];
       clickedBtn = document.getElementById(clicked_id);
       clickedBtn.innerText = "Added to cart";
@@ -181,6 +281,7 @@ function addToCart(clicked_id) {
       cartList.push(prodCart);
     }
   }
+
   document.getElementById("itemsCount").innerHTML = `${cartList.length}`;
 }
 
@@ -217,35 +318,39 @@ function viewCart() {
     document.getElementById("payment_col").style.display = "none";
   } else {
     document.getElementById("payment_col").style.display = "block";
+    cartItems.innerHTML = ""; // Clear cart items before rendering
+
     for (var i of cartList) {
+      // Normalize cart item properties here, similar to display
+      let itemId = i.id || i._id;
+      let itemTitle = i.title || i.name;
+      let itemImage = i.image || (i.images && i.images.length > 0 ? i.images[0] : '');
+      let itemCategory = Array.isArray(i.category) ? i.category[0] : i.category;
+
       let newDiv = document.createElement("div");
       cartItems.append(newDiv);
       newDiv.setAttribute("class", "row justify-content-center");
+
       newDiv.innerHTML = `<div class="card mb-3" style="max-width: 900px">
     <div class="row g-0">
       <div class="col-md-4 d-flex justify-content-center align-items-center pt-md-0 pt-3">
-        <img src="${i.image
-        }" class="rounded-start" alt="..." width="230px" height="210px" />
+        <img src="${itemImage}" class="rounded-start" alt="..." width="230px" height="210px" />
       </div>
       <div class="col-md-8">
         <div class="card-body">
-          <h5 class="card-title">${i.title}</h5>
+          <h5 class="card-title">${itemTitle}</h5>
           <p class="card-text">
-            ${i.category}
+            ${itemCategory}
           </p>
-          <p id="price${i.id
-        }" class="priceView" class="card-text mt-1 fs-5">&#36;${i.price * qty[i.id]
+          <p id="price${itemId}" class="priceView" class="card-text mt-1 fs-5">&#36;${i.price * qty[itemId]
         }</p>          
           <div class="card-text mb-3">
-            <button id="qtyDec${i.id
-        }" class="qtyBtn" onClick="qtyDec(this.id)">-</button>
-            <p id="qty${i.id}" class="qtySpan d-inline">${qty[i.id]}</p>
-            <button id="qtyInc${i.id
-        }" class="qtyBtn" onClick="qtyInc(this.id)">+</button>               
+            <button id="qtyDec${itemId}" class="qtyBtn" onClick="qtyDec(this.id)">-</button>
+            <p id="qty${itemId}" class="qtySpan d-inline">${qty[itemId]}</p>
+            <button id="qtyInc${itemId}" class="qtyBtn" onClick="qtyInc(this.id)">+</button>               
           </div>
           <p class="card-text">
-            <a href="#" id="${i.id
-        }" onClick="removeProd(this.id)" class="btn btn-danger">Remove</a>
+            <a href="#" id="${itemId}" onClick="removeProd(this.id)" class="btn btn-danger">Remove</a>
           </p>
         </div>
       </div>
@@ -273,8 +378,14 @@ function qtyInc(clicked_id) {
       qtyList[i].innerHTML = `${res}`;
 
       var tempPrice = priceList[i].textContent;
-      let t = Number(tempPrice.slice(1)) + cartList[i].price;
-      priceList[i].innerHTML = `&#36;${t.toFixed(2)}`;
+
+      // Find the item in cartList using normalized ID
+      let cartItem = cartList.find(item => (item.id || item._id) == numClk[0]);
+
+      if (cartItem) {
+        let t = Number(tempPrice.slice(1)) + cartItem.price;
+        priceList[i].innerHTML = `&#36;${t.toFixed(2)}`;
+      }
     }
   }
 }
@@ -292,8 +403,14 @@ function qtyDec(clicked_id) {
         qtyList[i].innerHTML = `${res}`;
 
         var tempPrice = priceList[i].textContent;
-        let t = Number(tempPrice.slice(1)) - cartList[i].price;
-        priceList[i].innerHTML = `&#36;${t.toFixed(2)}`;
+
+        // Find the item in cartList using normalized ID
+        let cartItem = cartList.find(item => (item.id || item._id) == numClk[0]);
+
+        if (cartItem) {
+          let t = Number(tempPrice.slice(1)) - cartItem.price;
+          priceList[i].innerHTML = `&#36;${t.toFixed(2)}`;
+        }
       }
     }
   }
@@ -301,22 +418,35 @@ function qtyDec(clicked_id) {
 
 function removeProd(clicked_id) {
   for (var j = 0; j < cartList.length; j++) {
-    if (cartList[j].id == clicked_id) {
+    let currentId = cartList[j].id || cartList[j]._id;
+    if (currentId == clicked_id) {
       cartList.splice(j, 1);
+      break; // Exit loop once removed
     }
   }
+
   document.getElementById("cart_col").innerHTML = "";
+
+  // Re-render the cart view
   viewCart();
+
+  // Reset the "Add to Cart" button on the product page
   let clickedBtn = document.getElementById(clicked_id);
-  clickedBtn.innerText = "Add to cart";
-  // clickedBtn.style.pointerEvents = "auto";
-  // clickedBtn.style.cursor = "pointer";
-  clickedBtn.setAttribute("class", "btn btn-warning");
-  clickedBtn.style = "";
+
+  if (clickedBtn) {
+    clickedBtn.innerText = "Add to cart";
+    clickedBtn.setAttribute("class", "btn btn-warning");
+    clickedBtn.style = "";
+    clickedBtn.style.pointerEvents = "auto";
+    clickedBtn.style.cursor = "pointer";
+  }
+
   document.getElementById("itemsCount").innerHTML = `${cartList.length}`;
   let numClk = clicked_id.match(regExp);
 
-  qty[numClk[0]] = 1;
+  if (numClk) {
+    qty[numClk[0]] = 1;
+  }
 }
 
 function viewHome() {
